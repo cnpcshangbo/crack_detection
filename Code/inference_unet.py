@@ -5,7 +5,7 @@ from pathlib import Path
 import cv2 as cv
 import torch
 import torch as F
-#import torch.nn.functional as F
+# import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
 from unet.unet_transfer import UNet16, input_size
@@ -16,6 +16,7 @@ from PIL import Image
 import gc
 from utils import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
+
 
 def evaluate_img(model, img):
     input_width, input_height = input_size[0], input_size[1]
@@ -29,6 +30,7 @@ def evaluate_img(model, img):
     mask = F.sigmoid(mask[0, 0]).data.cpu().numpy()
     mask = cv.resize(mask, (img_width, img_height), cv.INTER_AREA)
     return mask
+
 
 def evaluate_img_patch(model, img):
     input_width, input_height = input_size[0], input_size[1]
@@ -67,9 +69,11 @@ def evaluate_img_patch(model, img):
     probability_map = np.zeros((img_height, img_width), dtype=float)
     for i, response in enumerate(preds):
         coords = patch_locs[i]
-        probability_map[coords[1]:coords[1] + input_height, coords[0]:coords[0] + input_width] += response
+        probability_map[coords[1]:coords[1] + input_height,
+                        coords[0]:coords[0] + input_width] += response
 
     return probability_map
+
 
 def disable_axis():
     plt.axis('off')
@@ -78,14 +82,19 @@ def disable_axis():
     plt.gca().axes.get_xaxis().set_ticklabels([])
     plt.gca().axes.get_yaxis().set_ticklabels([])
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-img_dir',type=str, help='input dataset directory')
+    parser.add_argument('-img_dir', type=str, help='input dataset directory')
     parser.add_argument('-model_path', type=str, help='trained model path')
-    parser.add_argument('-model_type', type=str, choices=['vgg16', 'resnet101', 'resnet34'])
-    parser.add_argument('-out_viz_dir', type=str, default='', required=False, help='visualization output dir')
-    parser.add_argument('-out_pred_dir', type=str, default='', required=False,  help='prediction output dir')
-    parser.add_argument('-threshold', type=float, default=0.2 , help='threshold to cut off crack response')
+    parser.add_argument('-model_type', type=str,
+                        choices=['vgg16', 'resnet101', 'resnet34'])
+    parser.add_argument('-out_viz_dir', type=str, default='',
+                        required=False, help='visualization output dir')
+    parser.add_argument('-out_pred_dir', type=str, default='',
+                        required=False,  help='prediction output dir')
+    parser.add_argument('-threshold', type=float, default=0.2,
+                        help='threshold to cut off crack response')
     args = parser.parse_args()
 
     if args.out_viz_dir != '':
@@ -100,9 +109,9 @@ if __name__ == '__main__':
 
     if args.model_type == 'vgg16':
         model = load_unet_vgg16(args.model_path)
-    elif args.model_type  == 'resnet101':
+    elif args.model_type == 'resnet101':
         model = load_unet_resnet_101(args.model_path)
-    elif args.model_type  == 'resnet34':
+    elif args.model_type == 'resnet34':
         model = load_unet_resnet_34(args.model_path)
         print(model)
     else:
@@ -110,13 +119,14 @@ if __name__ == '__main__':
         exit()
 
     channel_means = [0.485, 0.456, 0.406]
-    channel_stds  = [0.229, 0.224, 0.225]
+    channel_stds = [0.229, 0.224, 0.225]
 
     paths = [path for path in Path(args.img_dir).glob('*.*')]
     for path in tqdm(paths):
-        #print(str(path))
+        # print(str(path))
 
-        train_tfms = transforms.Compose([transforms.ToTensor(), transforms.Normalize(channel_means, channel_stds)])
+        train_tfms = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize(channel_means, channel_stds)])
 
         img_0 = Image.open(str(path))
         img_0 = np.asarray(img_0)
@@ -124,20 +134,101 @@ if __name__ == '__main__':
             print(f'incorrect image shape: {path.name}{img_0.shape}')
             continue
 
-        img_0 = img_0[:,:,:3]
+        img_0 = img_0[:, :, :3]
 
         img_height, img_width, img_channels = img_0.shape
 
         prob_map_full = evaluate_img(model, img_0)
 
         if args.out_pred_dir != '':
-            cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(prob_map_full * 255).astype(np.uint8))
+            image = (prob_map_full * 255).astype(np.uint8)
+            # image = cv.inRange(image, (125), (255))
+            
+            print('Processing Image File: ' + str(path))
+            print('Image File Type: ' + str(type(image)))
+            
+            middlecolumn = image[:, img_width//2]
+            print('Middle Column Pixels: \n' + str(middlecolumn))
+            max_value = max(middlecolumn)
+            print('Max Value: ' + str(max_value))
+            position_list = []
+            threshold = 0.1 * max_value
+            print('Threshold: ' + str(threshold) + " - 255")
+            position = 0
+            for i in middlecolumn:
+                if i > threshold:
+                    position_list.append(position)
+                position += 1
+            print('Positions within threshold: ' + str(position_list))
+            if len(position_list) == 0:
+                crack_pixel = 0
+            else:
+                crack_pixel = max(position_list) - min(position_list)
+            crack_width = crack_pixel * 0.02 * 25.4
+            
+
+            
+            # font
+            font = cv.FONT_HERSHEY_SIMPLEX
+
+            # org
+            org = (50, 50)
+
+            # fontScale
+            fontScale = 1
+
+            # Blue color in BGR
+            color = (255, 0, 0)
+
+            # Line thickness of 2 px
+            thickness = 2
+
+            # Using cv2.putText() method
+            image = cv.putText(image, 'Horizontal crack width: ' + str(round(crack_width, 2)) + ' mm', org, font,
+                               fontScale, color, thickness, cv.LINE_AA)
+
+            # org
+            org = (50, 150)
+            # Using cv2.putText() method
+            image = cv.putText(image, 'File name: ' + str(path), org, font,
+                               fontScale, color, thickness, cv.LINE_AA)
+            
+            # Calculate crack width for cracks in vertical directions
+            middlerow = image[img_height//2, :]
+            print('Middle Row Pixels: \n' + str(middlerow))
+            max_value = max(middlerow)
+            print('Max Value: ' + str(max_value))
+            position_list = []
+            threshold = 0.1 * max_value
+            print('Threshold: ' + str(threshold) + " - 255")
+            position = 0
+            for i in middlerow:
+                if i > threshold:
+                    position_list.append(position)
+                position += 1
+            print('Positions within threshold: ' + str(position_list))
+            if len(position_list) == 0:
+                crack_pixel = 0
+            else:
+                crack_pixel = max(position_list) - min(position_list)
+            crack_width = crack_pixel * 0.02 * 25.4
+            
+            # org
+            org = (50, 100)
+            # Using cv2.putText() method
+            image = cv.putText(image, 'Vertical crack width: ' + str(round(crack_width, 2)) + ' mm', org, font,
+                               fontScale, color, thickness, cv.LINE_AA)
+
+
+            cv.imwrite(filename=join(args.out_pred_dir,
+                       f'{path.stem}.jpg'), img=image)
 
         if args.out_viz_dir != '':
             # plt.subplot(121)
             # plt.imshow(img_0), plt.title(f'{img_0.shape}')
             if img_0.shape[0] > 2000 or img_0.shape[1] > 2000:
-                img_1 = cv.resize(img_0, None, fx=0.2, fy=0.2, interpolation=cv.INTER_AREA)
+                img_1 = cv.resize(img_0, None, fx=0.2, fy=0.2,
+                                  interpolation=cv.INTER_AREA)
             else:
                 img_1 = img_0
 
@@ -147,12 +238,13 @@ if __name__ == '__main__':
 
             prob_map_patch = evaluate_img_patch(model, img_1)
 
-            #plt.title(f'name={path.stem}. \n cut-off threshold = {args.threshold}', fontsize=4)
+            # plt.title(f'name={path.stem}. \n cut-off threshold = {args.threshold}', fontsize=4)
             prob_map_viz_patch = prob_map_patch.copy()
-            prob_map_viz_patch = prob_map_viz_patch/ prob_map_viz_patch.max()
+            prob_map_viz_patch = prob_map_viz_patch / prob_map_viz_patch.max()
             prob_map_viz_patch[prob_map_viz_patch < args.threshold] = 0.0
             fig = plt.figure()
-            st = fig.suptitle(f'name={path.stem} \n cut-off threshold = {args.threshold}', fontsize="x-large")
+            st = fig.suptitle(
+                f'name={path.stem} \n cut-off threshold = {args.threshold}', fontsize="x-large")
             ax = fig.add_subplot(231)
             ax.imshow(img_1)
             ax = fig.add_subplot(232)
