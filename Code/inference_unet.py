@@ -83,6 +83,62 @@ def disable_axis():
     plt.gca().axes.get_yaxis().set_ticklabels([])
 
 
+def calculate_corizontal_crack_width(image_rgb):
+    img_height, img_width = image_rgb.shape
+    middlecolumn = image[:, img_width//2]
+    print('Middle Column Pixels: \n' + str(middlecolumn))
+    max_value = max(middlecolumn)
+    print('Max Value: ' + str(max_value))
+    position_list = []
+    threshold = 0.1 * max_value
+    print('Threshold: ' + str(threshold) + " - 255")
+    position = 0
+    for i in middlecolumn:
+        if i > threshold:
+            position_list.append(position)
+        position += 1
+    print('Positions within threshold: ' + str(position_list))
+    if len(position_list) == 0:
+        crack_pixel = 0
+    else:
+        crack_pixel = max(position_list) - min(position_list)
+    crack_width = crack_pixel * 0.02 * 25.4
+
+    # font
+    # font = cv.FONT_HERSHEY_SIMPLEX
+
+    # org
+    # org = (50, 50)
+
+    # fontScale
+    # fontScale = 1
+
+    # Blue color in BGR
+    # color = (255, 0, 0)
+    # red = (0, 0, 200)
+
+    # Line thickness of 2 px
+    # thickness = 2
+
+    # Using cv2.putText() method
+    # image_rgb = cv.putText(image_rgb, 'Horizontal crack width: ' + str(round(crack_width, 2)) + ' mm', org, font,
+    #    fontScale, color, thickness, cv.LINE_AA)
+
+    # org
+    # org = (50, 150)
+    # Using cv2.putText() method
+    # image_rgb = cv.putText(image_rgb, 'File name: ' + str(path), org, font,
+    #    fontScale, color, thickness, cv.LINE_AA)
+
+    filename = join(args.out_pred_dir,
+                    f'{path.stem}_annotation.txt')
+    with open(filename, 'a') as f:
+        f.write('File name: ' + str(path) + '\n')
+        f.write('Horizontal crack width: ' +
+                str(round(crack_width, 2)) + ' mm' + '\n')
+    pass
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-img_dir', type=str, help='input dataset directory')
@@ -144,56 +200,16 @@ if __name__ == '__main__':
             image = (prob_map_full * 255).astype(np.uint8)
             # image = cv.inRange(image, (125), (255))
             # image_rgb = cv.cvtColor(image, cv.COLOR_GRAY2RGB)
+
             image_rgb = image.copy()
+            cv.imwrite(filename=join(args.out_pred_dir,
+                                     f'{path.stem}_image_rgb.jpg'), img=image_rgb)
             original = image_rgb.copy()
 
             print('Processing Image File: ' + str(path))
             print('Image File Type: ' + str(type(image)))
 
-            middlecolumn = image[:, img_width//2]
-            print('Middle Column Pixels: \n' + str(middlecolumn))
-            max_value = max(middlecolumn)
-            print('Max Value: ' + str(max_value))
-            position_list = []
-            threshold = 0.1 * max_value
-            print('Threshold: ' + str(threshold) + " - 255")
-            position = 0
-            for i in middlecolumn:
-                if i > threshold:
-                    position_list.append(position)
-                position += 1
-            print('Positions within threshold: ' + str(position_list))
-            if len(position_list) == 0:
-                crack_pixel = 0
-            else:
-                crack_pixel = max(position_list) - min(position_list)
-            crack_width = crack_pixel * 0.02 * 25.4
-
-            # font
-            font = cv.FONT_HERSHEY_SIMPLEX
-
-            # org
-            org = (50, 50)
-
-            # fontScale
-            fontScale = 1
-
-            # Blue color in BGR
-            color = (255, 0, 0)
-            red = (0, 0, 200)
-
-            # Line thickness of 2 px
-            thickness = 2
-
-            # Using cv2.putText() method
-            image_rgb = cv.putText(image_rgb, 'Horizontal crack width: ' + str(round(crack_width, 2)) + ' mm', org, font,
-                                   fontScale, color, thickness, cv.LINE_AA)
-
-            # org
-            org = (50, 150)
-            # Using cv2.putText() method
-            image_rgb = cv.putText(image_rgb, 'File name: ' + str(path), org, font,
-                                   fontScale, color, thickness, cv.LINE_AA)
+            calculate_corizontal_crack_width(image_rgb)
 ##################################################################################################################
 ##################################################################################################################
 ##################################################################################################################
@@ -203,36 +219,24 @@ if __name__ == '__main__':
 ##################################################################################################################
 ##################################################################################################################
 ##################################################################################################################
-            cv.imwrite(filename=join(args.out_pred_dir,
-                                     f'{path.stem}_image_rgb.jpg'), img=image_rgb)
+
             # img_height, img_width, img_channels = image_rgb.shape
 
             middlerow = image_rgb[img_height//2, :]
 
-            # Draw a red line to show the area that is processed
-
+            print('##############################################################################################\nMiddle Row Pixels: \n' + str(middlerow))
+            max_value = max(middlerow)
             # overlayer = image_rgb.copy()
-            # overlayer = cv.line(overlayer, (0, img_height//2),
-            #                     (img_width, img_height//2), color, 1)
+            # overlayer = cv.line(overlayer, (max_value, img_height//2 - 20),
+            #                     (max_value, img_height//2 - 1), color, 1)
+            # overlayer = cv.line(overlayer, (max_value, img_height//2 + 20),
+            #                     (max_value, img_height//2 + 1), color, 1)
             # # Transparency value
             # alpha = 0.50
 
             # # Perform weighted addition of the input image and the overlay
             # image_rgb = cv.addWeighted(
             #     overlayer, alpha, image_rgb, 1 - alpha, 0)
-            print('##############################################################################################\nMiddle Row Pixels: \n' + str(middlerow))
-            max_value = max(middlerow)
-            overlayer = image_rgb.copy()
-            overlayer = cv.line(overlayer, (max_value, img_height//2 - 20),
-                                (max_value, img_height//2 - 1), color, 1)
-            overlayer = cv.line(overlayer, (max_value, img_height//2 + 20),
-                                (max_value, img_height//2 + 1), color, 1)
-            # Transparency value
-            alpha = 0.50
-
-            # Perform weighted addition of the input image and the overlay
-            image_rgb = cv.addWeighted(
-                overlayer, alpha, image_rgb, 1 - alpha, 0)
 
             print('Max Value: ' + str(max_value))
             position_list = []
@@ -260,19 +264,25 @@ if __name__ == '__main__':
                 crack_pixel = max(position_list) - min(position_list)
             crack_width = crack_pixel * 0.02 * 25.4
 
-            # org
-            org = (50, 100)
-            # Using cv2.putText() method
-            overlayer = image_rgb.copy()
-            overlayer = cv.putText(overlayer, 'Vertical crack width: ' + str(round(crack_width, 2)) + ' mm', org, font,
-                                   fontScale, color, thickness, cv.LINE_AA)
+            # # org
+            # org = (50, 100)
+            # # Using cv2.putText() method
+            # overlayer = image_rgb.copy()
+            # overlayer = cv.putText(overlayer, 'Vertical crack width: ' + str(round(crack_width, 2)) + ' mm', org, font,
+            #                        fontScale, color, thickness, cv.LINE_AA)
+            filename = join(args.out_pred_dir,
+                            f'{path.stem}_annotation.txt')
+            with open(filename, 'a') as f:
+                f.write('Vertical crack width: ' +
+                        str(round(crack_width, 2)) + ' mm\n')
+                # f.write('Horizontal crack width: ' +
+                #         str(round(crack_width, 2)) + ' mm')
+            # # Transparency value
+            # alpha = 0.5
 
-            # Transparency value
-            alpha = 0.5
-
-            # Perform weighted addition of the input image and the overlay
-            image_rgb = cv.addWeighted(
-                overlayer, alpha, image_rgb, 1 - alpha, 0)
+            # # Perform weighted addition of the input image and the overlay
+            # image_rgb = cv.addWeighted(
+            #     overlayer, alpha, image_rgb, 1 - alpha, 0)
 
             # alpha = 0.5
 
