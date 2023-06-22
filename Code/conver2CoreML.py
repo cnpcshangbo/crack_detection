@@ -21,6 +21,8 @@ from PIL import Image
 import gc
 from utils import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # change to script dir
 os.chdir("./Code")
 
@@ -87,45 +89,85 @@ if __name__ == '__main__':
         if out_pred_dir != '':
             cv.imwrite(filename=join(out_pred_dir, f'{path.stem}.jpg'), img=(prob_map_full * 255).astype(np.uint8))
 
-        if out_viz_dir != '':
-                    # plt.subplot(121)
-                    # plt.imshow(img_0), plt.title(f'{img_0.shape}')
-                    if img_0.shape[0] > 2000 or img_0.shape[1] > 2000:
-                        img_1 = cv.resize(img_0, None, fx=0.2, fy=0.2, interpolation=cv.INTER_AREA)
-                    else:
-                        img_1 = img_0
+        # if out_viz_dir != '':
+        #             # plt.subplot(121)
+        #             # plt.imshow(img_0), plt.title(f'{img_0.shape}')
+        #             if img_0.shape[0] > 2000 or img_0.shape[1] > 2000:
+        #                 img_1 = cv.resize(img_0, None, fx=0.2, fy=0.2, interpolation=cv.INTER_AREA)
+        #             else:
+        #                 img_1 = img_0
 
-                    # plt.subplot(122)
-                    # plt.imshow(img_0), plt.title(f'{img_0.shape}')
-                    # plt.show()
+        #             # plt.subplot(122)
+        #             # plt.imshow(img_0), plt.title(f'{img_0.shape}')
+        #             # plt.show()
 
-                    prob_map_patch = evaluate_img_patch_tfms(model, img_1, train_tfms)
+        #             prob_map_patch = evaluate_img_patch_tfms(model, img_1, train_tfms)
 
-                    #plt.title(f'name={path.stem}. \n cut-off threshold = {args.threshold}', fontsize=4)
-                    prob_map_viz_patch = prob_map_patch.copy()
-                    prob_map_viz_patch = prob_map_viz_patch/ prob_map_viz_patch.max()
-                    prob_map_viz_patch[prob_map_viz_patch < args.threshold] = 0.0
-                    fig = plt.figure()
-                    st = fig.suptitle(f'name={path.stem} \n cut-off threshold = {args.threshold}', fontsize="x-large")
-                    ax = fig.add_subplot(231)
-                    ax.imshow(img_1)
-                    ax = fig.add_subplot(232)
-                    ax.imshow(prob_map_viz_patch)
-                    ax = fig.add_subplot(233)
-                    ax.imshow(img_1)
-                    ax.imshow(prob_map_viz_patch, alpha=0.4)
+        #             #plt.title(f'name={path.stem}. \n cut-off threshold = {args.threshold}', fontsize=4)
+        #             prob_map_viz_patch = prob_map_patch.copy()
+        #             prob_map_viz_patch = prob_map_viz_patch/ prob_map_viz_patch.max()
+        #             prob_map_viz_patch[prob_map_viz_patch < args.threshold] = 0.0
+        #             fig = plt.figure()
+        #             st = fig.suptitle(f'name={path.stem} \n cut-off threshold = {args.threshold}', fontsize="x-large")
+        #             ax = fig.add_subplot(231)
+        #             ax.imshow(img_1)
+        #             ax = fig.add_subplot(232)
+        #             ax.imshow(prob_map_viz_patch)
+        #             ax = fig.add_subplot(233)
+        #             ax.imshow(img_1)
+        #             ax.imshow(prob_map_viz_patch, alpha=0.4)
 
-                    prob_map_viz_full = prob_map_full.copy()
-                    prob_map_viz_full[prob_map_viz_full < args.threshold] = 0.0
+        #             prob_map_viz_full = prob_map_full.copy()
+        #             prob_map_viz_full[prob_map_viz_full < args.threshold] = 0.0
 
-                    ax = fig.add_subplot(234)
-                    ax.imshow(img_0)
-                    ax = fig.add_subplot(235)
-                    ax.imshow(prob_map_viz_full)
-                    ax = fig.add_subplot(236)
-                    ax.imshow(img_0)
-                    ax.imshow(prob_map_viz_full, alpha=0.4)
+        #             ax = fig.add_subplot(234)
+        #             ax.imshow(img_0)
+        #             ax = fig.add_subplot(235)
+        #             ax.imshow(prob_map_viz_full)
+        #             ax = fig.add_subplot(236)
+        #             ax.imshow(img_0)
+        #             ax.imshow(prob_map_viz_full, alpha=0.4)
 
-                    plt.savefig(join(out_viz_dir, f'{path.stem}.jpg'), dpi=500)
-                    plt.close('all')
+        #             plt.savefig(join(out_viz_dir, f'{path.stem}.jpg'), dpi=500)
+        #             plt.close('all')
         break
+    
+    def display_segmentation(input_image, output_predictions):
+        # Create a color pallette, selecting a color for each class
+        # palette = torch.tensor([2 ** 25 - 1, 2 ** 15 - 1, 2 ** 21 - 1])
+        # colors = torch.as_tensor([i for i in range(21)])[:, None] * palette
+        # colors = (colors % 255).numpy().astype("uint8")
+
+        # Plot the semantic segmentation predictions of 21 classes in each color
+        # r = Image.fromarray(
+        #     output_predictions.byte().cpu().numpy()
+        # ).resize(input_image.size)
+        # r.putpalette(colors)
+
+        # Overlay the segmentation mask on the original image
+        alpha_image = input_image.copy()
+        alpha_image.putalpha(255)
+        
+        # r = r.convert("RGBA")
+        # r = output_predictions.convert("RGBA")
+        
+        
+        
+        # image = Image.fromarray(output_predictions)
+        # Get the color map by name:
+        cm = plt.get_cmap('gist_rainbow')
+
+        # Apply the colormap like a function to any array:
+        im = cm(output_predictions)
+        # print(type(image))
+        im = np.uint8(im * 255)#array(512, 384, 4) (0~1)->array(512, 384, 4) (0~255)
+        im = Image.fromarray(im)#array(512, 384, 4) (0~255) -> PIL.Images
+    
+        r = im.convert("RGBA")
+        r.putalpha(128)
+        seg_image = Image.alpha_composite(alpha_image, r)
+        seg_image.show()
+        
+    img_0 = Image.open(str(path))
+    out_img=(prob_map_full * 255).astype(np.uint8)
+    display_segmentation(img_0, out_img)
