@@ -24,7 +24,7 @@ from tqdm import tqdm
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # change to script dir
-os.chdir("./Code")
+os.chdir("/Users/boshang/Documents/GitHub/crack_detection/Code")
 
 if __name__ == '__main__':
     modle_dir = "../Models/model_unet_vgg_16_best.pt"
@@ -89,47 +89,47 @@ if __name__ == '__main__':
         if out_pred_dir != '':
             cv.imwrite(filename=join(out_pred_dir, f'{path.stem}.jpg'), img=(prob_map_full * 255).astype(np.uint8))
 
-        # if out_viz_dir != '':
-        #             # plt.subplot(121)
-        #             # plt.imshow(img_0), plt.title(f'{img_0.shape}')
-        #             if img_0.shape[0] > 2000 or img_0.shape[1] > 2000:
-        #                 img_1 = cv.resize(img_0, None, fx=0.2, fy=0.2, interpolation=cv.INTER_AREA)
-        #             else:
-        #                 img_1 = img_0
+        if out_viz_dir != '':
+                    # plt.subplot(121)
+                    # plt.imshow(img_0), plt.title(f'{img_0.shape}')
+                    if img_0.shape[0] > 2000 or img_0.shape[1] > 2000:
+                        img_1 = cv.resize(img_0, None, fx=0.2, fy=0.2, interpolation=cv.INTER_AREA)
+                    else:
+                        img_1 = img_0
 
-        #             # plt.subplot(122)
-        #             # plt.imshow(img_0), plt.title(f'{img_0.shape}')
-        #             # plt.show()
+                    # plt.subplot(122)
+                    # plt.imshow(img_0), plt.title(f'{img_0.shape}')
+                    # plt.show()
 
-        #             prob_map_patch = evaluate_img_patch_tfms(model, img_1, train_tfms)
+                    prob_map_patch = evaluate_img_patch_tfms(model, img_1, train_tfms)
 
-        #             #plt.title(f'name={path.stem}. \n cut-off threshold = {args.threshold}', fontsize=4)
-        #             prob_map_viz_patch = prob_map_patch.copy()
-        #             prob_map_viz_patch = prob_map_viz_patch/ prob_map_viz_patch.max()
-        #             prob_map_viz_patch[prob_map_viz_patch < args.threshold] = 0.0
-        #             fig = plt.figure()
-        #             st = fig.suptitle(f'name={path.stem} \n cut-off threshold = {args.threshold}', fontsize="x-large")
-        #             ax = fig.add_subplot(231)
-        #             ax.imshow(img_1)
-        #             ax = fig.add_subplot(232)
-        #             ax.imshow(prob_map_viz_patch)
-        #             ax = fig.add_subplot(233)
-        #             ax.imshow(img_1)
-        #             ax.imshow(prob_map_viz_patch, alpha=0.4)
+                    #plt.title(f'name={path.stem}. \n cut-off threshold = {args.threshold}', fontsize=4)
+                    prob_map_viz_patch = prob_map_patch.copy()
+                    prob_map_viz_patch = prob_map_viz_patch/ prob_map_viz_patch.max()
+                    prob_map_viz_patch[prob_map_viz_patch < args.threshold] = 0.0
+                    fig = plt.figure()
+                    st = fig.suptitle(f'name={path.stem} \n cut-off threshold = {args.threshold}', fontsize="x-large")
+                    ax = fig.add_subplot(231)
+                    ax.imshow(img_1)
+                    ax = fig.add_subplot(232)
+                    ax.imshow(prob_map_viz_patch)
+                    ax = fig.add_subplot(233)
+                    ax.imshow(img_1)
+                    ax.imshow(prob_map_viz_patch, alpha=0.4)
 
-        #             prob_map_viz_full = prob_map_full.copy()
-        #             prob_map_viz_full[prob_map_viz_full < args.threshold] = 0.0
+                    prob_map_viz_full = prob_map_full.copy()
+                    prob_map_viz_full[prob_map_viz_full < args.threshold] = 0.0
 
-        #             ax = fig.add_subplot(234)
-        #             ax.imshow(img_0)
-        #             ax = fig.add_subplot(235)
-        #             ax.imshow(prob_map_viz_full)
-        #             ax = fig.add_subplot(236)
-        #             ax.imshow(img_0)
-        #             ax.imshow(prob_map_viz_full, alpha=0.4)
+                    ax = fig.add_subplot(234)
+                    ax.imshow(img_0)
+                    ax = fig.add_subplot(235)
+                    ax.imshow(prob_map_viz_full)
+                    ax = fig.add_subplot(236)
+                    ax.imshow(img_0)
+                    ax.imshow(prob_map_viz_full, alpha=0.4)
 
-        #             plt.savefig(join(out_viz_dir, f'{path.stem}.jpg'), dpi=500)
-        #             plt.close('all')
+                    plt.savefig(join(out_viz_dir, f'{path.stem}.jpg'), dpi=500)
+                    plt.close('all')
         break
     
     def display_segmentation(input_image, output_predictions):
@@ -155,17 +155,22 @@ if __name__ == '__main__':
         
         # image = Image.fromarray(output_predictions)
         # Get the color map by name:
-        cm = plt.get_cmap('gist_rainbow')
-
+        # cm = plt.get_cmap('gist_rainbow')
+        prob_map_viz_patch = output_predictions.copy()
+        # prob_map_viz_patch = prob_map_viz_patch/ prob_map_viz_patch.max()
+        prob_map_viz_patch[prob_map_viz_patch < args.threshold*255] = 0.0
         # Apply the colormap like a function to any array:
-        im = cm(output_predictions)
+        # im = cm(output_predictions)
         # print(type(image))
-        im = np.uint8(im * 255)#array(512, 384, 4) (0~1)->array(512, 384, 4) (0~255)
-        im = Image.fromarray(im)#array(512, 384, 4) (0~255) -> PIL.Images
+        # im = np.uint8(im * 255)#array(512, 384, 4) (0~1)->array(512, 384, 4) (0~255)
+        # im = Image.fromarray(im)#array(512, 384, 4) (0~255) -> PIL.Images
     
-        r = im.convert("RGBA")
-        r.putalpha(128)
-        seg_image = Image.alpha_composite(alpha_image, r)
+        # 
+        prob_map_viz_patch = Image.fromarray(prob_map_viz_patch)
+        prob_map_viz_patch = prob_map_viz_patch.convert("RGBA")
+        prob_map_viz_patch.show()
+        prob_map_viz_patch.putalpha(128)
+        seg_image = Image.alpha_composite(alpha_image, prob_map_viz_patch)
         seg_image.show()
         
     img_0 = Image.open(str(path))
