@@ -17,12 +17,73 @@ import gc
 from utils import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
 
+def evaluate_img_patch_tfms(model, img, train_tfms):
+    input_width, input_height = input_size[0], input_size[1]
+
+    img_height, img_width, img_channels = img.shape
+
+    if img_width < input_width or img_height < input_height:
+        return evaluate_img_tfms(model, img, tfms)
+
+    stride_ratio = 0.1
+    stride = int(input_width * stride_ratio)
+
+    normalization_map = np.zeros((img_height, img_width), dtype=np.int16)
+
+    patches = []
+    patch_locs = []
+    for y in range(0, img_height - input_height + 1, stride):
+        for x in range(0, img_width - input_width + 1, stride):
+            segment = img[y:y + input_height, x:x + input_width]
+            normalization_map[y:y + input_height, x:x + input_width] += 1
+            patches.append(segment)
+            patch_locs.append((x, y))
+
+    patches = np.array(patches)
+    if len(patch_locs) <= 0:
+        return None
+
+    preds = []
+    for i, patch in enumerate(patches):
+        patch_n = train_tfms(Image.fromarray(patch))
+        # X = Variable(patch_n.unsqueeze(0)).cuda()  # [N, 1, H, W]
+        X = Variable(patch_n.unsqueeze(0)).cpu()
+        masks_pred = model(X)
+        mask = F.sigmoid(masks_pred[0, 0]).data.cpu().numpy()
+        preds.append(mask)
+
+    probability_map = np.zeros((img_height, img_width), dtype=float)
+    for i, response in enumerate(preds):
+        coords = patch_locs[i]
+        probability_map[coords[1]:coords[1] + input_height, coords[0]:coords[0] + input_width] += response
+
+    return probability_map
+
+
+def evaluate_img_tfms(model, img, train_tfms):
+    input_width, input_height = input_size[0], input_size[1]
+
+    img_1 = cv.resize(img, (input_width, input_height), cv.INTER_AREA)
+    # nonlocal train_tfms
+    X = train_tfms(Image.fromarray(img_1))
+    # X = Variable(X.unsqueeze(0)).cuda()  # [N, 1, H, W]
+    X = Variable(X.unsqueeze(0)).cpu()
+
+    mask = model(X)
+
+    mask = F.sigmoid(mask[0, 0]).data.cpu().numpy()
+    img_height, img_width, img_channels = img.shape
+    mask = cv.resize(mask, (img_width, img_height), cv.INTER_AREA)
+    return mask
+
 def evaluate_img(model, img):
     input_width, input_height = input_size[0], input_size[1]
 
     img_1 = cv.resize(img, (input_width, input_height), cv.INTER_AREA)
+    # nonlocal train_tfms
     X = train_tfms(Image.fromarray(img_1))
-    X = Variable(X.unsqueeze(0)).cuda()  # [N, 1, H, W]
+    # X = Variable(X.unsqueeze(0)).cuda()  # [N, 1, H, W]
+    X = Variable(X.unsqueeze(0)).cpu()
 
     mask = model(X)
 
@@ -59,7 +120,8 @@ def evaluate_img_patch(model, img):
     preds = []
     for i, patch in enumerate(patches):
         patch_n = train_tfms(Image.fromarray(patch))
-        X = Variable(patch_n.unsqueeze(0)).cuda()  # [N, 1, H, W]
+        # X = Variable(patch_n.unsqueeze(0)).cuda()  # [N, 1, H, W]
+        X = Variable(patch_n.unsqueeze(0)).cpu()
         masks_pred = model(X)
         mask = F.sigmoid(masks_pred[0, 0]).data.cpu().numpy()
         preds.append(mask)
@@ -86,6 +148,7 @@ if __name__ == '__main__':
     parser.add_argument('-out_viz_dir', type=str, default='', required=False, help='visualization output dir')
     parser.add_argument('-out_pred_dir', type=str, default='', required=False,  help='prediction output dir')
     parser.add_argument('-threshold', type=float, default=0.2 , help='threshold to cut off crack response')
+    # parser.
     args = parser.parse_args()
 
     if args.out_viz_dir != '':

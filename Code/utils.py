@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import tqdm
 from unet.unet_transfer import UNet16, UNetResNet
+import os
 
 
 class AverageMeter(object):
@@ -58,8 +59,13 @@ def create_model(device, type ='vgg16'):
     return model.to(device)
 
 def load_unet_vgg16(model_path):
+    # print(os.getcwd())    
+    # print(model_path)
     model = UNet16(pretrained=True)
-    checkpoint = torch.load(model_path)
+    # print(os.getcwd())    
+    # print(model_path)
+    # exit()
+    checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
     if 'model' in checkpoint:
         model.load_state_dict(checkpoint['model'])
     elif 'state_dict' in checkpoint:
@@ -67,7 +73,7 @@ def load_unet_vgg16(model_path):
     else:
         raise Exception('undefind model format')
 
-    model.cuda()
+    # model.cuda()
     model.eval()
 
     return model

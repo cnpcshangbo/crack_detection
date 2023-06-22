@@ -1,0 +1,5 @@
+Code/__pycache__/
+Models/model_unet_vgg_16_best.pt
+.DS_Store
+Code/unet/__pycache__/
+Data/Outputs/
