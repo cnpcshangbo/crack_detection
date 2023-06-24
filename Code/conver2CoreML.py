@@ -10,6 +10,7 @@ from pathlib import Path
 import cv2 as cv
 import torch
 import torch as F
+import torch.nn as nn
 #import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
@@ -22,6 +23,7 @@ import gc
 from utils import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
 import os
+import coremltools as ct
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # change to script dir
 os.chdir("/Users/boshang/Documents/GitHub/crack_detection/Code")
@@ -176,3 +178,100 @@ if __name__ == '__main__':
     img_0 = Image.open(str(path))
     out_img=(prob_map_full * 255).astype(np.uint8)
     display_segmentation(img_0, out_img)
+    
+class WrappedDeeplabv3Resnet101(nn.Module):
+
+    def __init__(self):
+        super(WrappedDeeplabv3Resnet101, self).__init__()
+        # self.model = torch.hub.load(
+        #     'pytorch/vision:v0.6.0',
+        #     'deeplabv3_resnet101',
+        #     pretrained=True
+        # ).eval()
+        
+        # device = torch.device('cpu')#torch.device('cuda:0' if len(availble_gpus) > 0 else 'cpu')
+
+        # # Model
+        # self.model = models.UperNet(num_classes=3, in_channels=3 ,backbone="resnet50", freeze_bn=False, freeze_backbone=False)
+        # checkpoint = torch.load('/Users/boshang/Documents/GitHub/visual-inspection-aws/lambda/code/models/best_model.pth', map_location=device) #.eval()
+
+        # if isinstance(checkpoint, dict) and 'state_dict' in checkpoint.keys():
+        #     checkpoint = checkpoint['state_dict']
+        # if 'module' in list(checkpoint.keys())[0] and not isinstance(self.model, torch.nn.DataParallel):
+        #     self.model = torch.nn.DataParallel(self.model)
+        # self.model.load_state_dict(checkpoint)
+        # # print(model)
+        # self.model.to(device)
+        self.model = load_unet_vgg16(modle_dir)
+
+    def forward(self, x):
+        # res = self.model(x)
+        # Extract the tensor we want from the output dictionary
+        # x = res["out"]
+        # return x
+        x = self.model(x)
+
+        # mask = F.sigmoid(mask[0, 0]).data.cpu().numpy()
+        # img_height, img_width, img_channels = img.shape
+        # mask = cv.resize(mask, (img_width, img_height), cv.INTER_AREA)
+        return x
+    # def forward(self, x):
+    #     conv1 = self.conv1(x)
+    #     conv2 = self.conv2(self.pool(conv1))
+    #     conv3 = self.conv3(self.pool(conv2))
+    #     conv4 = self.conv4(self.pool(conv3))
+    #     conv5 = self.conv5(self.pool(conv4))
+    #
+    #     center = self.center(self.pool(conv5))
+    #
+    #     dec5 = self.dec5(torch.cat([center, conv5], 1))
+    #
+    #     dec4 = self.dec4(torch.cat([dec5, conv4], 1))
+    #     dec3 = self.dec3(torch.cat([dec4, conv3], 1))
+    #     dec2 = self.dec2(torch.cat([dec3, conv2], 1))
+    #     dec1 = self.dec1(torch.cat([dec2, conv1], 1))
+    #
+    #     if self.num_classes > 1:
+    #         x_out = F.log_softmax(self.final(dec1), dim=1)
+    #     else:
+    #         x_out = self.final(dec1)
+    #         #x_out = F.sigmoid(x_out)
+    #
+    #     return x_out
+with torch.no_grad():
+    img_0 = Image.open(str(path))
+    img_0 = np.asarray(img_0)
+    if len(img_0.shape) != 3:
+        print(f'incorrect image shape: {path.name}{img_0.shape}')
+        exit()
+
+    img_0 = img_0[:,:,:3]
+    input_width, input_height = input_size[0], input_size[1]
+
+    img_1 = cv.resize(img_0, (input_width, input_height), cv.INTER_AREA)
+    # nonlocal train_tfms
+    X = train_tfms(Image.fromarray(img_1))
+    # X = Variable(X.unsqueeze(0)).cuda()  # [N, 1, H, W]
+    # X = Variable(X.unsqueeze(0)).cpu()
+    X = X.unsqueeze(0)
+
+    traceable_model = WrappedDeeplabv3Resnet101().eval()
+X.requires_grad = False
+trace = torch.jit.trace(traceable_model, X)
+
+mlmodel = ct.convert(
+    trace,
+    inputs=[ct.TensorType(name="input", shape=input_batch.shape)],
+)
+
+mlmodel.save("SegmentationModel_no_metadata.mlmodel")
+
+# load the model
+mlmodel = ct.models.MLModel("SegmentationModel_no_metadata.mlmodel")
+
+labels_json = {"labels": ["background", "aeroplane", "bicycle", "bird", "board", "bottle", "bus", "car", "cat", "chair", "cow", "diningTable", "dog", "horse", "motorbike", "person", "pottedPlant", "sheep", "sofa", "train", "tvOrMonitor"]}
+
+mlmodel.user_defined_metadata["com.apple.coreml.model.preview.type"] = "imageSegmenter"
+mlmodel.user_defined_metadata['com.apple.coreml.model.preview.params'] = json.dumps(labels_json)
+
+mlmodel.save("SegmentationModel_with_metadata.mlmodel")
