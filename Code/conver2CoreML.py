@@ -210,12 +210,12 @@ class WrappedDeeplabv3Resnet101(nn.Module):
         # Extract the tensor we want from the output dictionary
         # x = res["out"]
         # return x
-        x = self.model(x)
+        mask = self.model(x)
 
-        # mask = F.sigmoid(mask[0, 0]).data.cpu().numpy()
+        mask = F.sigmoid(mask[0, 0]).data.cpu()#.numpy()
         # img_height, img_width, img_channels = img.shape
         # mask = cv.resize(mask, (img_width, img_height), cv.INTER_AREA)
-        return x
+        return mask
     # def forward(self, x):
     #     conv1 = self.conv1(x)
     #     conv2 = self.conv2(self.pool(conv1))

@@ -23,7 +23,7 @@ def evaluate_img_patch_tfms(model, img, train_tfms):
     img_height, img_width, img_channels = img.shape
 
     if img_width < input_width or img_height < input_height:
-        return evaluate_img_tfms(model, img, tfms)
+        return evaluate_img_tfms(model, img, train_tfms)
 
     stride_ratio = 0.1
     stride = int(input_width * stride_ratio)
