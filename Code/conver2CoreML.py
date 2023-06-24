@@ -24,6 +24,7 @@ from utils import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
 import os
 import coremltools as ct
+import json
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # change to script dir
 os.chdir("/Users/boshang/Documents/GitHub/crack_detection/Code")
@@ -256,9 +257,10 @@ with torch.no_grad():
     X = X.unsqueeze(0)
 
     traceable_model = WrappedDeeplabv3Resnet101().eval()
-X.requires_grad = False
+# X.requires_grad = False
 trace = torch.jit.trace(traceable_model, X)
 
+input_batch = X
 mlmodel = ct.convert(
     trace,
     inputs=[ct.TensorType(name="input", shape=input_batch.shape)],
